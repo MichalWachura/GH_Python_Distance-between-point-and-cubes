@@ -1,0 +1,69 @@
+import rhinoscriptsyntax as rs
+import Rhino
+import Rhino.Geometry as rg
+import System.Drawing as sd
+from Grasshopper.Kernel import GH_RuntimeMessageLevel as rel
+import Rhino.DocObjects as rd
+import scriptcontext as sc
+
+geo = []
+color = []
+
+# Check if eX is an integer, otherwise try to convert it
+if not isinstance(eX, int):
+    try:
+        eX = int(eX)
+    except:
+        ghenv.Component.AddRuntimeMessage(rel.Warning, "eX allows only integers as input")
+
+# Main loop to create geometry and colors
+for x in range(eX): 
+    for y in range(eY):
+        pt1 = rg.Point3d(x * sX, y * sY, 0)
+        pt2 = rg.Point3d(x * sX + 1, y * sY, 0)
+        pt3 = rg.Point3d(x * sX, y * sY + 1, 0)
+        
+        # Create a plane from three points
+        plane = rs.PlaneFromPoints(pt1, pt2, pt3)
+        
+        # Distance calculation and box creation
+        dist = rs.Distance(pt, pt1)
+        geo.append(
+            rg.Box(
+                plane,
+                rg.Interval(sX / 2 * -0.9, sX / 2),
+                rg.Interval(sY / 2 * -0.9, sY / 2),
+                rg.Interval(sZ / 2 * -1, dist)
+            )
+        )
+        
+        # Set color based on coordinates
+        color.append(sd.Color.FromArgb(int(x / eX * 255), int(y / eY * 255), 150))
+
+# Function to bake geometry to Rhino document
+def baker():
+    # Switch context to Rhino document for baking
+    ghdoc = sc.doc
+    sc.doc = Rhino.RhinoDoc.ActiveDoc
+    
+    for k in range(len(geo)):
+        # Convert box geometry to brep
+        brep = rg.Brep.CreateFromBox(geo[k])
+        
+        # Set attributes for color
+        attr = rd.ObjectAttributes()
+        attr.ColorSource = rd.ObjectColorSource.ColorFromObject
+        attr.ObjectColor = color[k]
+        
+        # Add the Brep to the Rhino document
+        sc.doc.Objects.AddBrep(brep, attr)
+    
+    # Restore Grasshopper document context
+    sc.doc = ghdoc
+    
+    # Update the document to reflect changes
+    sc.doc.Views.Redraw()
+
+# Execute bake if the bake flag is set to True
+if bake:
+    baker()
